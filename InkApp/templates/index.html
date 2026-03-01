@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkKey Pro | Zero Setting & Delta E</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes slideUp {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-slide { animation: slideUp 0.5s ease-out forwards; }
+        .ink-bar { transition: height 1s cubic-bezier(0.4, 0, 0.2, 1); }
+        .status-pill { transition: all 0.3s ease; }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-slate-200 min-h-screen font-sans">
+
+    <nav class="border-b border-slate-800 p-4 bg-[#1e293b] flex justify-between items-center">
+        <h1 class="text-xl font-bold tracking-tight text-cyan-400">INK<span class="text-white">CONTROL</span></h1>
+        <div class="flex gap-4 text-xs uppercase tracking-widest">
+            <span class="text-slate-400">Unit Status: <span class="text-green-400">Online</span></span>
+        </div>
+    </nav>
+
+    <main class="max-w-6xl mx-auto p-6 space-y-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <section class="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 animate-slide">
+                <h2 class="text-cyan-400 font-semibold mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-cyan-400 rounded-full"></span> 1. Job Config
+                </h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Target Delta E (Max)</label>
+                        <input type="number" id="targetDE" value="2.5" step="0.1" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 focus:border-cyan-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-slate-400 mb-1">Paper Type</label>
+                        <select class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2 outline-none">
+                            <option>Premium Coated</option>
+                            <option>Uncoated Offset</option>
+                            <option>Kraft / Recycled</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <section class="bg-[#1e293b] p-6 rounded-2xl border border-slate-700 animate-slide" style="animation-delay: 0.1s;">
+                <h2 class="text-cyan-400 font-semibold mb-4 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-yellow-400 rounded-full"></span> 2. First Scan (LAB)
+                </h2>
+                <div class="grid grid-cols-3 gap-2">
+                    <input type="number" id="labL" placeholder="L*" class="bg-slate-900 border border-slate-600 rounded p-2 text-center">
+                    <input type="number" id="labA" placeholder="a*" class="bg-slate-900 border border-slate-600 rounded p-2 text-center">
+                    <input type="number" id="labB" placeholder="b*" class="bg-slate-900 border border-slate-600 rounded p-2 text-center">
+                </div>
+                <button onclick="calculateAdjustment()" class="w-full mt-4 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2 rounded-lg transition-all active:scale-95">
+                    Process Measurement
+                </button>
+            </section>
+
+            <section class="bg-[#1e293b] rounded-2xl border border-slate-700 overflow-hidden relative group">
+                <div class="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/20 transition-all cursor-pointer">
+                    <div class="text-center">
+                        <div class="w-12 h-12 border-2 border-white rounded-full flex items-center justify-center mx-auto mb-2">
+                            <span class="ml-1">▶</span>
+                        </div>
+                        <p class="text-[10px] uppercase tracking-tighter">View Calibration Guide</p>
+                    </div>
+                </div>
+                <div class="h-full w-full bg-gradient-to-br from-slate-700 to-slate-900"></div>
+            </section>
+        </div>
+
+        <section class="bg-[#1e293b] p-8 rounded-2xl border border-slate-700 animate-slide" style="animation-delay: 0.2s;">
+            <div class="flex justify-between items-end mb-8">
+                <div>
+                    <h2 class="text-xl font-bold">Ink Key Adjustments</h2>
+                    <p class="text-slate-400 text-sm">Real-time opening requirements per station</p>
+                </div>
+                <div id="deDisplay" class="text-right">
+                    <span class="text-xs text-slate-400 block">Current ΔE</span>
+                    <span class="text-3xl font-mono font-bold">--</span>
+                </div>
+            </div>
+
+            <div class="flex items-end justify-between h-64 bg-slate-900/50 rounded-xl p-6 border border-slate-800 gap-3">
+                <div class="flex-1 flex flex-col items-center gap-4 h-full justify-end">
+                    <div id="bar-C" class="ink-bar w-full bg-cyan-500 rounded-t-md relative" style="height: 10%;">
+                         <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold" id="val-C">10%</span>
+                    </div>
+                    <span class="text-xs font-bold text-slate-500">CYAN</span>
+                </div>
+                <div class="flex-1 flex flex-col items-center gap-4 h-full justify-end">
+                    <div id="bar-M" class="ink-bar w-full bg-pink-500 rounded-t-md relative" style="height: 10%;">
+                        <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold" id="val-M">10%</span>
+                    </div>
+                    <span class="text-xs font-bold text-slate-500">MAGENTA</span>
+                </div>
+                <div class="flex-1 flex flex-col items-center gap-4 h-full justify-end">
+                    <div id="bar-Y" class="ink-bar w-full bg-yellow-400 rounded-t-md relative" style="height: 10%;">
+                        <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold" id="val-Y">10%</span>
+                    </div>
+                    <span class="text-xs font-bold text-slate-500">YELLOW</span>
+                </div>
+                <div class="flex-1 flex flex-col items-center gap-4 h-full justify-end">
+                    <div id="bar-K" class="ink-bar w-full bg-slate-400 rounded-t-md relative" style="height: 10%;">
+                        <span class="absolute -top-6 left-1/2 -translate-x-1/2 text-[10px] font-bold" id="val-K">10%</span>
+                    </div>
+                    <span class="text-xs font-bold text-slate-500">BLACK</span>
+                </div>
+            </div>
+        </section>
+    </main>
+
+   <!-- <script>
+        // Reference LAB for "Target Blue" (Example)
+        const refLAB = [55, -20, -40];
+
+        function calculateAdjustment() {
+            const l = parseFloat(document.getElementById('labL').value) || 0;
+            const a = parseFloat(document.getElementById('labA').value) || 0;
+            const b = parseFloat(document.getElementById('labB').value) || 0;
+            const targetDE = parseFloat(document.getElementById('targetDE').value);
+
+            // Calculate Delta E (CIE76)
+            const deltaE = Math.sqrt(
+                Math.pow(l - refLAB[0], 2) + 
+                Math.pow(a - refLAB[1], 2) + 
+                Math.pow(b - refLAB[2], 2)
+            ).toFixed(2);
+
+            // Update UI
+            const display = document.getElementById('deDisplay');
+            display.innerHTML = `
+                <span class="text-xs text-slate-400 block">Current ΔE</span>
+                <span class="text-4xl font-mono font-bold ${deltaE <= targetDE ? 'text-green-400' : 'text-red-400'}">${deltaE}</span>
+            `;
+
+            // Simulate Ink Key Movements based on ΔE
+            // Logic: If ΔE is high, we simulate a "correction" move
+            if (deltaE > targetDE) {
+                updateBars(Math.random() * 80 + 10, Math.random() * 80 + 10, Math.random() * 80 + 10, Math.random() * 80 + 10);
+            } else {
+                alert("Ink Profile within tolerance!");
+            }
+        }
+
+        function updateBars(c, m, y, k) {
+            const stations = ['C', 'M', 'Y', 'K'];
+            const vals = [c, m, y, k];
+            
+            stations.forEach((s, i) => {
+                document.getElementById(`bar-${s}`).style.height = `${vals[i]}%`;
+                document.getElementById(`val-${s}`).innerText = `${Math.round(vals[i])}%`;
+            });
+        }
+    </script>
+    -->
+</body>
+</html>
