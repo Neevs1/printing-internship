@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!--<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -159,5 +159,169 @@
         }
     </script>
     -->
+    <!--<script>
+        async function runAnalysis() {
+    const data = {
+        press_id: 1,
+        job_number: "Job-001",
+        paper_type: document.getElementById('paperType').value,
+        zone_number: 5.0, // Example
+        color: document.getElementById('colorSelect').value,
+        zero_setting: 0.0,
+        delta_e_before: document.getElementById('currentDE').value,
+        initial_density: 1.2,
+        final_density: 1.4,
+        initial_key: 25.0,
+        final_key: 28.0
+    };
+
+    const response = await fetch('/predict', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+    
+    if(result.status === "success") {
+        // Update the display with the ML prediction
+        document.getElementById('predictionOutput').innerText = result.predicted_delta_e;
+        
+        // Trigger the bar animations based on logic
+        updateInkBars(data.initial_key, data.final_key);
+    }
+}
+    </script>
+</body>
+</html>-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>InkKey Pro | ML Interface</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .card { background: #1e293b; border: 1px solid #334155; padding: 1.5rem; border-radius: 12px; }
+        input, select { background: #0f172a; border: 1px solid #475569; color: white; padding: 8px; border-radius: 6px; width: 100%; margin-top: 4px; }
+        label { color: #94a3b8; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+        .ink-bar { transition: height 0.8s ease-out; }
+    </style>
+</head>
+<body class="bg-[#0f172a] text-white font-sans p-10">
+
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold mb-8 text-cyan-400">ML Ink Key Adjustment Console</h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div class="card space-y-4">
+                <h2 class="text-cyan-400 border-b border-slate-700 pb-2 mb-4">Job Info</h2>
+                <div><label>Press ID</label><input type="number" id="Press_ID" value="1"></div>
+                <div><label>Job Number</label><input type="text" id="Job_Number" value="101"></div>
+                <div><label>Paper Type</label>
+                    <select id="Paper_type">
+                        <option value="Coated">Coated</option>
+                        <option value="Uncoated">Uncoated</option>
+                    </select>
+                </div>
+                <div><label>Color</label>
+                    <select id="Color">
+                        <option value="Cyan">Cyan</option>
+                        <option value="Magenta">Magenta</option>
+                        <option value="Yellow">Yellow</option>
+                        <option value="Black">Black</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card space-y-4">
+                <h2 class="text-cyan-400 border-b border-slate-700 pb-2 mb-4">Measurements</h2>
+                <div><label>Zone Number</label><input type="number" id="Zone_number" value="5"></div>
+                <div><label>Ink Key Zero Setting</label><input type="number" id="Ink_key_zero_setting" value="0.0"></div>
+                <div><label>Delta E (Initial)</label><input type="number" id="Delta_E_before" step="0.1" value="5.2"></div>
+                <div><label>Initial Density</label><input type="number" id="initial_density" step="0.01" value="1.2"></div>
+            </div>
+
+            <div class="card flex flex-col justify-between">
+                <div>
+                    <h2 class="text-cyan-400 border-b border-slate-700 pb-2 mb-4">Adjustment Settings</h2>
+                    <div><label>Final Density Target</label><input type="number" id="final_density" step="0.01" value="1.4"></div>
+                    <div><label>Current Key %</label><input type="number" id="initial_ink_key_setting" step="0.1" value="30.0"></div>
+                    <div><label>Final Key % (Projected)</label><input type="number" id="final_ink_key_setting" step="0.1" value="35.0"></div>
+                </div>
+
+                <button onclick="getPrediction()" class="bg-cyan-600 hover:bg-cyan-500 py-4 rounded-lg font-bold mt-6 transition-all">
+                    RUN ML PREDICTION
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-10 card flex items-center justify-between">
+            <div class="text-center w-1/3 border-r border-slate-700">
+                <span class="text-slate-400 text-sm">PREDICTED DELTA E AFTER</span>
+                <div id="resultVal" class="text-6xl font-mono font-bold text-slate-500">---</div>
+            </div>
+            <div class="w-2/3 px-10">
+                <span class="text-slate-400 text-sm mb-4 block">VISUAL KEY ADJUSTMENT</span>
+                <div class="h-12 bg-slate-900 rounded-full overflow-hidden border border-slate-700 relative">
+                    <div id="resultBar" class="h-full bg-cyan-500 transition-all duration-1000" style="width: 0%"></div>
+                    <span id="barLabel" class="absolute inset-0 flex items-center justify-center text-xs font-bold">0%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function getPrediction() {
+    const btn = document.querySelector('button');
+    btn.innerText = "CALCULATING...";
+
+    // This object MUST match the keys in your app.py exactly
+    const payload = {
+        Press_ID: document.getElementById('Press_ID').value,
+        Job_Number: document.getElementById('Job_Number').value,
+        Paper_type: document.getElementById('Paper_type').value,
+        Zone_number: document.getElementById('Zone_number').value,
+        Color: document.getElementById('Color').value,
+        Ink_key_zero_setting: document.getElementById('Ink_key_zero_setting').value,
+        Delta_E_before: document.getElementById('Delta_E_before').value,
+        initial_density: document.getElementById('initial_density').value,
+        final_density: document.getElementById('final_density').value,
+        initial_ink_key_setting: document.getElementById('initial_ink_key_setting').value,
+        final_ink_key_setting: document.getElementById('final_ink_key_setting').value
+    };
+
+    try {
+        const response = await fetch('/predict', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        
+        if(result.status === "success") {
+            const de = result.prediction;
+            // Update the big number
+            const display = document.getElementById('resultVal');
+            display.innerText = de;
+            
+            // Color logic: Green if Delta E is low, Yellow/Red if high
+            display.className = "text-6xl font-mono font-bold " + (de < 2.5 ? "text-green-400" : "text-yellow-500");
+            
+            // Update the bar based on the predicted value or key setting
+            const keySetting = payload.final_ink_key_setting;
+            document.getElementById('resultBar').style.width = keySetting + "%";
+            document.getElementById('barLabel').innerText = "FINAL KEY OPENING: " + keySetting + "%";
+        } else {
+            console.error("Backend Error:", result.message);
+            alert("Model Error: " + result.message);
+        }
+    } catch (err) {
+        console.error("Network Error:", err);
+    } finally {
+        btn.innerText = "RUN ML PREDICTION";
+    }
+}
+    </script>
 </body>
 </html>
