@@ -1,0 +1,113 @@
+"""from flask import Flask, render_template
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)"""
+"""from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import joblib
+
+app = Flask(__name__)
+
+# 1. Load the saved pipeline
+model = joblib.load(r'C:\Users\ARJUN\OneDrive\Desktop\printing-internship\ink_model_pipeline.pkl')
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        
+        # 2. Create a DataFrame matching the EXACT column names used in training
+        input_df = pd.DataFrame([{
+            'Press_ID': int(data['press_id']),
+            'Job_Number': str(data['job_number']),
+            'Paper_type': str(data['paper_type']),
+            'Zone_number': float(data['zone_number']),
+            'Color': str(data['color']),
+            'Ink_key_zero_setting': float(data['zero_setting']),
+            'Delta_E_before': float(data['delta_e_before']),
+            'initial_density': float(data['initial_density']),
+            'final_density': float(data['final_density']),
+            'initial_ink_key_setting': float(data['initial_key']),
+            'final_ink_key_setting': float(data['final_key'])
+        }])
+
+        # 3. Predict Delta E After
+        # The pipeline automatically handles scaling and encoding
+        prediction = model.predict(input_df)
+        
+        return jsonify({
+            "status": "success",
+            "predicted_delta_e": float(round(prediction[0], 2))
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+if __name__ == '__main__':
+    app.run(debug=True) """
+
+
+from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import joblib
+import os
+
+app = Flask(__name__)
+
+# Load the model you saved from your notebook
+# Ensure the .pkl file is in the same folder as this script
+model_path = os.path.join(os.path.dirname(__file__), 'ink_model_pipeline.pkl')
+
+try:
+    model = joblib.load(model_path)
+    print("Model loaded successfully!")
+except:
+    print("Error: ink_model_pipeline.pkl not found. Please export it from your notebook first.")
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        
+        # We must create a DataFrame with the EXACT names from your notebook
+        input_df = pd.DataFrame([{
+            'Press_ID': int(data['Press_ID']),
+            'Job_Number': str(data['Job_Number']),
+            'Paper_type': str(data['Paper_type']),
+            'Zone_number': float(data['Zone_number']),
+            'Color': str(data['Color']),
+            'Ink_key_zero_setting': float(data['Ink_key_zero_setting']),
+            'Delta_E_before': float(data['Delta_E_before']),
+            'initial_density': float(data['initial_density']),
+            'final_density': float(data['final_density']),
+            'initial_ink_key_setting': float(data['initial_ink_key_setting']),
+            'final_ink_key_setting': float(data['final_ink_key_setting'])
+        }])
+
+        # Run the XGBoost Prediction
+        prediction = model.predict(input_df)
+        
+        return jsonify({
+            "status": "success",
+            "prediction": round(float(prediction[0]), 3)
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+if __name__ == '__main__':
+    app.run(debug=True)
