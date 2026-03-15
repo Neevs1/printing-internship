@@ -1,0 +1,177 @@
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Press Configuration | InkKey Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; }
+        .glass-card { 
+            background: rgba(30, 41, 59, 0.7); 
+            backdrop-filter: blur(10px); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+        }
+        input:focus { border-color: #22d3ee; ring: 2px #22d3ee; }
+    </style>
+</head>
+<body class="text-slate-200 min-h-screen flex items-center justify-center p-6">
+
+    <div class="max-w-xl w-full glass-card p-8 rounded-3xl shadow-2xl">
+        <div class="flex items-center gap-3 mb-8">
+            <div class="p-3 bg-cyan-500/20 rounded-xl">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-white">Press Configuration</h1>
+                <p class="text-slate-400 text-sm">Hardware-specific calibration settings</p>
+            </div>
+        </div>
+
+        {% if msg %}
+        <div class="mb-6 p-4 bg-emerald-500/10 border border-emerald-500/50 rounded-xl flex items-center gap-3 text-emerald-400 animate-pulse">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+            <span class="text-sm font-medium">{{ msg }}</span>
+        </div>
+        {% endif %}
+
+        <form action="/settings" method="POST" class="space-y-6">
+            
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    Density vs Ink Key Relation
+                </label>
+                <div class="relative">
+                    <input type="number" step="0.01" name="density_relation" value="{{config.density_relation}}" 
+                           class="w-full bg-slate-900/50 border border-slate-700 rounded-xl p-4 text-white focus:outline-none transition-all"
+                           required>
+                    <span class="absolute right-4 top-4 text-slate-500 text-sm">Ratio</span>
+                </div>
+                <p class="mt-2 text-[11px] text-slate-500 italic">Example: If 0.5 density increase requires a specific key shift, enter that coefficient here.</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    Ink Key Zero Setting (Mechanical)
+                </label>
+                <div class="relative">
+                    <input type="number" step="0.1" name="zero_setting" value="{{config.zero_setting}}" 
+                           class="w-full bg-slate-900/50 border border-slate-700 rounded-xl p-4 text-white focus:outline-none transition-all"
+                           required>
+                    <span class="absolute right-4 top-4 text-slate-500 text-sm">%</span>
+                </div>
+                <p class="mt-2 text-[11px] text-slate-500 italic">The baseline physical opening of the ink keys when the press is "Zeroed".</p>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">
+                    Required ΔE Target (Threshold)
+                </label>
+                <div class="relative">
+                    <input type="number" step="0.1" name="target_de" value="{{config.target_de}}" 
+                           class="w-full bg-slate-900/50 border border-slate-700 rounded-xl p-4 text-white focus:outline-none transition-all"
+                           required>
+                    <span class="absolute right-4 top-4 text-slate-500 text-sm">ΔE</span>
+                </div>
+                <p class="mt-2 text-[11px] text-slate-500 italic">The maximum allowable color difference. Usually 2.5 or 3.0.</p>
+            </div>
+
+            <div class="pt-4 space-y-3">
+                <button type="submit" 
+                        class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-cyan-900/20 active:scale-95">
+                    UPDATE LOCAL CONFIGURATION
+                </button>
+                
+                <a href="/" 
+                   class="block w-full text-center py-3 text-slate-400 hover:text-white text-sm transition-colors">
+                   ← Return to Job Dashboard
+                </a>
+            </div>
+        </form>
+
+        <div class="mt-8 pt-6 border-t border-slate-700/50 text-center">
+            <p class="text-[10px] text-slate-500 uppercase tracking-widest">Local Data Storage • No Cloud Sync</p>
+        </div>
+    </div>
+
+</body>
+</html>-->
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings | InkKey Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#0f172a] text-slate-200 min-h-screen flex items-center justify-center p-6">
+    <div class="max-w-md w-full bg-[#1e293b] p-8 rounded-3xl border border-slate-700 shadow-2xl">
+        <h1 class="text-2xl font-bold mb-6 text-cyan-400">Press Configuration</h1>
+        {% if msg %}<div class="mb-4 text-emerald-400 text-sm font-bold">✓ {{ msg }}</div>{% endif %}
+        
+        <form action="/settings" method="POST" class="space-y-6">
+            <div><label class="text-xs font-bold text-slate-400 uppercase">Density Relation</label>
+                <input type="number" step="0.01" name="density_relation" value="{{config.density_relation}}" class="w-full bg-slate-900 p-3 rounded-xl border border-slate-700 mt-1"></div>
+            <div><label class="text-xs font-bold text-slate-400 uppercase">Ink Key Zero Setting</label>
+                <input type="number" step="0.1" name="zero_setting" value="{{config.zero_setting}}" class="w-full bg-slate-900 p-3 rounded-xl border border-slate-700 mt-1"></div>
+            <div><label class="text-xs font-bold text-slate-400 uppercase">Target Delta E</label>
+                <input type="number" step="0.1" name="target_de" value="{{config.target_de}}" class="w-full bg-slate-900 p-3 rounded-xl border border-slate-700 mt-1"></div>
+            <button type="submit" class="w-full bg-cyan-600 py-3 rounded-xl font-bold">SAVE SETTINGS</button>
+        </form>
+
+        <div class="mt-8 pt-8 border-t border-slate-700">
+            <h2 class="text-yellow-500 font-bold text-xs uppercase mb-4">Self-Learning Management</h2>
+            <button onclick="retrain()" id="rtBtn" class="w-full bg-yellow-600 hover:bg-yellow-500 text-black py-3 rounded-xl font-bold transition-all">SYNC & RETRAIN MODEL</button>
+        </div>
+        <a href="/" class="block text-center mt-6 text-slate-500 text-sm">← Back to Console</a>
+    </div>
+
+    <script>
+        async function retrain() {
+            const btn = document.getElementById('rtBtn');
+            btn.innerText = "TRAINING...";
+            const res = await fetch('/retrain', {method:'POST'});
+            const result = await res.json();
+            if(result.status === "success") { alert(result.message); }
+            btn.innerText = "SYNC & RETRAIN MODEL";
+        }
+    </script>
+</body>
+</html>-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Settings | InkKey Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#0f172a] text-slate-200 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-[#1e293b] p-8 rounded-2xl border border-slate-700">
+        <h1 class="text-2xl font-bold mb-6 text-cyan-400">System Calibration</h1>
+        <form action="/settings" method="POST" class="space-y-4">
+            <div><label class="text-[10px] text-slate-400 font-bold uppercase">Density Relation</label>
+                <input type="number" step="0.01" name="density_relation" value="{{config.density_relation}}" class="w-full bg-slate-900 p-2 rounded border border-slate-700"></div>
+            <div><label class="text-[10px] text-slate-400 font-bold uppercase">Zero Setting Offset</label>
+                <input type="number" step="0.1" name="zero_setting" value="{{config.zero_setting}}" class="w-full bg-slate-900 p-2 rounded border border-slate-700"></div>
+            <div><label class="text-[10px] text-slate-400 font-bold uppercase">Target ΔE</label>
+                <input type="number" step="0.1" name="target_de" value="{{config.target_de}}" class="w-full bg-slate-900 p-2 rounded border border-slate-700"></div>
+            <button type="submit" class="w-full bg-cyan-600 py-3 rounded font-bold">SAVE CONFIG</button>
+        </form>
+        <div class="mt-8 pt-8 border-t border-slate-700">
+            <button onclick="retrain()" id="rtBtn" class="w-full bg-yellow-600 text-black py-3 rounded font-bold">SYNC & RETRAIN MODEL</button>
+        </div>
+        <a href="/" class="block text-center mt-4 text-slate-500 text-xs italic">← Exit Settings</a>
+    </div>
+    <script>
+        async function retrain() {
+            const btn = document.getElementById('rtBtn'); btn.innerText = "PROCESSING...";
+            const res = await fetch('/retrain', {method:'POST'});
+            const r = await res.json(); alert(r.message); btn.innerText = "SYNC & RETRAIN MODEL";
+        }
+    </script>
+</body>
+</html>

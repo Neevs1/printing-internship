@@ -194,6 +194,8 @@
     </script>
 </body>
 </html>-->
+
+<!--
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -322,6 +324,426 @@
         btn.innerText = "RUN ML PREDICTION";
     }
 }
+    </script>
+</body>
+</html>
+-->
+
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Entry | InkKey Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; }
+        .input-box { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; }
+        label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; font-weight: bold; }
+        input, select { width: 100%; background: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 10px; color: white; outline: none; }
+        input:focus { border-color: #22d3ee; }
+        .ink-bar { transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+    </style>
+</head>
+<body class="text-slate-200 p-6 font-sans">
+
+    <div class="max-w-5xl mx-auto">
+        <header class="flex justify-between items-center mb-8 border-b border-slate-700 pb-5">
+            <div>
+                <h1 class="text-2xl font-bold text-white">Job Requirement Console</h1>
+                <p class="text-slate-400 text-sm">Step 2: Enter Job Data for ML Prediction</p>
+            </div>
+            <a href="/settings" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 px-4 py-2 rounded-lg text-sm transition-all">
+                ⚙️ Press Settings
+            </a>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <div class="space-y-6">
+                <div class="input-box">
+                    <h2 class="text-cyan-400 text-sm font-bold mb-4 uppercase">Job Information</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label>Job Number</label><input type="text" id="job_number" value="1001"></div>
+                        <div><label>Paper Type</label>
+                            <select id="paper_type">
+                                <option value="Coated">Coated</option>
+                                <option value="Uncoated">Uncoated</option>
+                            </select>
+                        </div>
+                        <div><label>Color Station</label>
+                            <select id="color">
+                                <option value="Cyan">Cyan</option>
+                                <option value="Magenta">Magenta</option>
+                                <option value="Yellow">Yellow</option>
+                                <option value="Black">Black</option>
+                            </select>
+                        </div>
+                        <div><label>Zone Number</label><input type="number" id="zone_number" value="5"></div>
+                    </div>
+                </div>
+
+                <div class="input-box">
+                    <h2 class="text-yellow-500 text-sm font-bold mb-4 uppercase">Initial Measurements</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label>Delta E Before</label><input type="number" id="de_before" step="0.1" value="5.5"></div>
+                        <div><label>Initial Density (Opt)</label><input type="number" id="init_dens" step="0.01" value="1.20"></div>
+                        <div class="col-span-2">
+                            <label>Initial Ink Key Setting (%)</label>
+                            <input type="range" id="init_key" min="0" max="100" value="30" oninput="this.nextElementSibling.value = this.value">
+                            <output class="text-cyan-400 font-mono">30</output>%
+                        </div>
+                    </div>
+                    <button onclick="runPrediction()" class="w-full mt-6 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95">
+                        RUN ML PREDICTION
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="input-box border-green-500/30 border-2">
+    <h2 class="text-green-400 text-sm font-bold mb-4 uppercase">Step 3: Operator Verification (Self-Learning)</h2>
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label>Actual Final Key Used (%)</label>
+            <input type="number" id="actual_key" step="0.1" placeholder="Enter verified setting">
+        </div>
+        <div class="flex items-end">
+            <button onclick="saveActual()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-2 rounded-lg transition-all">
+                CONFIRM & SAVE READING
+            </button>
+        </div>
+    </div>
+    <p class="text-[10px] text-slate-500 mt-2">Saving this reading allows the model to "learn" from this specific job.</p>
+</div>
+                <div class="input-box h-full flex flex-col justify-between border-cyan-500/30 border-2">
+                    <div>
+                        <h2 class="text-sm font-bold mb-6 text-slate-400">ML Predicted Output</h2>
+                        <div class="text-center py-10 bg-[#0f172a] rounded-2xl border border-slate-700">
+                            <span class="text-[10px] block text-slate-500 uppercase tracking-widest mb-2">Final Delta E Target</span>
+                            <span id="finalDE" class="text-3xl font-mono font-bold text-green-400">{{ config.target_de }}</span>
+                            
+                            <hr class="my-6 border-slate-800">
+                            
+                            <span class="text-[10px] block text-slate-500 uppercase tracking-widest mb-2">Predicted Final Ink Key Opening</span>
+                            <span id="predictedKey" class="text-6xl font-mono font-bold text-cyan-400">--</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-10">
+                        <label class="text-center block mb-4">Horizontal Key Opening Visualization</label>
+                        <div class="w-full bg-slate-900 h-16 rounded-xl border border-slate-700 relative overflow-hidden">
+                            <div id="visBar" class="ink-bar h-full bg-gradient-to-r from-cyan-600 to-cyan-400" style="width: 0%"></div>
+                            <span id="visText" class="absolute inset-0 flex items-center justify-center font-bold text-white drop-shadow-md">0%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        async function runPrediction() {
+            const data = {
+                job_number: document.getElementById('job_number').value,
+                paper_type: document.getElementById('paper_type').value,
+                color: document.getElementById('color').value,
+                zone_number: document.getElementById('zone_number').value,
+                de_before: document.getElementById('de_before').value,
+                init_key: document.getElementById('init_key').value,
+                init_dens: document.getElementById('init_dens').value
+            };
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.status === "success") {
+                    // Update the numbers
+                    document.getElementById('predictedKey').innerText = result.final_key + "%";
+                    
+                    // Update the Horizontal Bar
+                    document.getElementById('visBar').style.width = result.final_key + "%";
+                    document.getElementById('visText').innerText = result.final_key + "%";
+                } else {
+                    alert("Error: " + result.message);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Connection failed. Make sure app.py is running.");
+            }
+        }
+        // ADD THIS BELOW YOUR runPrediction() FUNCTION
+async function saveActual() {
+    const actual = document.getElementById('actual_key').value;
+    if(!actual) return alert("Please enter the actual setting used on the press.");
+
+    try {
+        const response = await fetch('/save_actual', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ actual_key: actual })
+        });
+
+        const res = await response.json();
+        if(res.status === "success") {
+            alert("Success: Reading logged to print_logs.xlsx. The model can now learn from this result!");
+            document.getElementById('actual_key').value = ""; // Clear input
+        } else {
+            alert("Error: " + res.message);
+        }
+    } catch (err) {
+        alert("Failed to connect to server.");
+    }
+}
+    </script>
+</body>
+</html>-->
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Entry | InkKey Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; }
+        .input-box { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 1.5rem; }
+        label { display: block; font-size: 0.7rem; color: #94a3b8; text-transform: uppercase; margin-bottom: 4px; font-weight: bold; }
+        input, select { width: 100%; background: #0f172a; border: 1px solid #475569; border-radius: 6px; padding: 10px; color: white; outline: none; }
+        input:focus { border-color: #22d3ee; }
+        .ink-bar { transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); }
+        #zone-sequence::-webkit-scrollbar { height: 4px; }
+        #zone-sequence::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .zone-btn { min-width: 42px; height: 50px; background: #0f172a; border: 1px solid #334155; display: flex; align-items: center; justify-content: center; font-weight: bold; font-family: monospace; cursor: pointer; border-radius: 6px; }
+        .zone-btn.active { background: #0891b2; border-color: #22d3ee; color: white; transform: translateY(-2px); }
+    </style>
+</head>
+<body class="text-slate-200 p-4 font-sans">
+    <div class="max-w-6xl mx-auto">
+        <header class="flex justify-between items-center mb-6 border-b border-slate-700 pb-5">
+            <div>
+                <h1 class="text-2xl font-bold text-white uppercase tracking-tight">Job <span class="text-cyan-400">Requirement</span> Console</h1>
+            </div>
+            <a href="/settings" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 px-4 py-2 rounded-lg text-xs font-bold transition-all">⚙️ PRESS SETTINGS</a>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="space-y-6">
+                <div class="input-box">
+                    <h2 class="text-cyan-400 text-xs font-bold mb-4 uppercase tracking-widest">Select Ink Key Zone (1-32)</h2>
+                    <div id="zone-sequence" class="flex gap-2 overflow-x-auto pb-4"></div>
+                    <input type="hidden" id="zone_number" value="1">
+                </div>
+
+                <div class="input-box grid grid-cols-2 gap-4">
+                    <div class="col-span-2"><h2 class="text-slate-400 text-xs font-bold mb-2 uppercase">Job Information</h2></div>
+                    <div><label>Job Number</label><input type="text" id="job_number" value="JOB-101"></div>
+                    <div><label>Color</label>
+                        <select id="color" onchange="updateBarColor()">
+                            <option value="Cyan">Cyan</option><option value="Magenta">Magenta</option>
+                            <option value="Yellow">Yellow</option><option value="Black">Black</option>
+                        </select>
+                    </div>
+                    <div><label>Paper Type</label>
+                        <select id="paper_type">
+                            <option value="Coated">Coated</option><option value="Uncoated">Uncoated</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="input-box">
+                    <h2 class="text-yellow-500 text-xs font-bold mb-4 uppercase">Initial Measurements</h2>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label>Delta E Before</label><input type="number" id="de_before" step="0.1" value="5.5"></div>
+                        <div><label>Initial Density (Opt)</label><input type="number" id="init_dens" step="0.01" value="1.20"></div>
+                        <div class="col-span-2">
+                            <label>Initial Key Setting (%)</label>
+                            <input type="range" id="init_key" min="0" max="100" value="30" oninput="this.nextElementSibling.value = this.value">
+                            <output class="text-cyan-400 font-mono">30</output>%
+                        </div>
+                    </div>
+                    <button onclick="runPrediction()" class="w-full mt-6 bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg active:scale-95">RUN ML PREDICTION</button>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="input-box border-cyan-500/30 border-2 flex flex-col justify-between">
+                    <div class="text-center py-6 bg-[#0f172a] rounded-2xl border border-slate-700">
+                        <span class="text-[10px] block text-slate-500 uppercase mb-2">Predicted Final Key Opening</span>
+                        <span id="predictedKey" class="text-7xl font-mono font-bold text-cyan-400">--</span>
+                        <div class="mt-4"><span class="text-xs text-slate-500">Target ΔE: </span><span class="text-green-400 font-bold">{{ config.target_de }}</span></div>
+                    </div>
+
+                    <div class="mt-8">
+                        <label class="text-center block mb-4">Key Opening Visualization</label>
+                        <div class="w-full bg-slate-900 h-14 rounded-xl border border-slate-700 relative overflow-hidden">
+                            <div id="visBar" class="ink-bar h-full bg-cyan-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-slate-700">
+                        <h2 class="text-green-400 text-xs font-bold mb-4 uppercase">Self-Learning: Save Actual Result</h2>
+                        <div class="flex gap-2">
+                            <input type="number" id="actual_key" step="0.1" placeholder="Verified %">
+                            <button onclick="saveActual()" class="bg-green-600 px-6 rounded-lg font-bold text-sm whitespace-nowrap">LOG DATA</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Generate Zones
+        const zoneContainer = document.getElementById('zone-sequence');
+        for(let i=1; i<=32; i++){
+            const btn = document.createElement('div');
+            btn.className = `zone-btn ${i===1?'active':''}`;
+            btn.innerText = i.toString().padStart(2,'0');
+            btn.onclick = () => {
+                document.querySelectorAll('.zone-btn').forEach(b=>b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('zone_number').value = i;
+            };
+            zoneContainer.appendChild(btn);
+        }
+
+        async function runPrediction() {
+            const data = {
+                job_number: document.getElementById('job_number').value,
+                paper_type: document.getElementById('paper_type').value,
+                color: document.getElementById('color').value,
+                zone_number: document.getElementById('zone_number').value,
+                de_before: document.getElementById('de_before').value,
+                init_key: document.getElementById('init_key').value,
+                init_dens: document.getElementById('init_dens').value
+            };
+            const res = await fetch('/predict', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)});
+            const result = await res.json();
+            if(result.status === "success") {
+                document.getElementById('predictedKey').innerText = result.final_key + "%";
+                document.getElementById('visBar').style.width = result.final_key + "%";
+            }
+        }
+
+        async function saveActual() {
+            const val = document.getElementById('actual_key').value;
+            if(!val) return alert("Enter actual key %");
+            const res = await fetch('/save_actual', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({actual_key: val})});
+            const result = await res.json();
+            if(result.status === "success") { alert("Verified data saved for learning."); document.getElementById('actual_key').value = ""; }
+        }
+
+        function updateBarColor() {
+            const color = document.getElementById('color').value;
+            const bar = document.getElementById('visBar');
+            const colors = {'Cyan':'#06b6d4', 'Magenta':'#d946ef', 'Yellow':'#facc15', 'Black':'#64748b'};
+            bar.style.backgroundColor = colors[color];
+        }
+    </script>
+</body>
+</html>-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>InkKey Pro | Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: sans-serif; }
+        .console-container::-webkit-scrollbar { height: 10px; }
+        .console-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 5px; }
+        .zone-cell { min-width: 95px; border-right: 1px solid #1e293b; padding: 12px; }
+        input { background: #020617; border: 1px solid #334155; color: #22d3ee; padding: 6px; border-radius: 4px; width: 100%; text-align: center; }
+        .result-box { height: 180px; background: #020617; border-radius: 8px; position: relative; display: flex; align-items: flex-end; justify-content: center; overflow: hidden; }
+        .key-bar { width: 100%; background: linear-gradient(to top, #0891b2, #22d3ee); transition: height 0.6s ease-out; }
+    </style>
+</head>
+<body class="p-4">
+    <div class="max-w-[99%] mx-auto">
+        <header class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4">
+            <h1 class="text-xl font-bold tracking-tight">INKKEY <span class="text-cyan-400">CONSOLE</span></h1>
+            <div class="flex gap-3">
+                <select id="global_color" onchange="updateColors()" class="bg-slate-800 px-4 py-2 rounded text-cyan-400 font-bold outline-none">
+                    <option value="Cyan">Cyan</option><option value="Magenta">Magenta</option>
+                    <option value="Yellow">Yellow</option><option value="Black">Black</option>
+                </select>
+                <button onclick="calculateAll()" class="bg-cyan-600 hover:bg-cyan-500 px-6 py-2 rounded font-bold transition-all">PREDICT PROFILE</button>
+                <button onclick="clearConsole()" class="bg-slate-700 hover:bg-red-900 px-4 py-2 rounded text-xs transition-all">CLEAR ALL</button>
+                <a href="/settings" class="bg-slate-800 p-2 rounded">⚙️</a>
+            </div>
+        </header>
+
+        <div class="console-container overflow-x-auto bg-[#1e293b] rounded-xl border border-slate-700">
+            <table class="w-full border-collapse">
+                <tr class="bg-slate-900/50 text-[10px] text-slate-500">
+                    <th class="p-3 sticky left-0 bg-[#1e293b] border-r border-slate-700 z-10">Zone</th>
+                    <script>for(let i=1; i<=32; i++) document.write(`<th class="zone-cell text-center">${i}</th>`);</script>
+                </tr>
+                <tr>
+                    <td class="p-3 text-xs font-bold sticky left-0 bg-[#1e293b] border-r border-slate-700 z-10">Init ΔE</td>
+                    <script>for(let i=1; i<=32; i++) document.write(`<td class="zone-cell"><input type="number" step="0.1" class="de-in" data-zone="${i}"></td>`);</script>
+                </tr>
+                <tr>
+                    <td class="p-3 text-xs font-bold sticky left-0 bg-[#1e293b] border-r border-slate-700 z-10">Init Key%</td>
+                    <script>for(let i=1; i<=32; i++) document.write(`<td class="zone-cell"><input type="number" class="key-in" data-zone="${i}" value="20"></td>`);</script>
+                </tr>
+                <tr class="bg-black/20">
+                    <td class="p-3 text-xs font-bold sticky left-0 bg-[#1e293b] border-r border-slate-700 z-10">Result</td>
+                    <script>for(let i=1; i<=32; i++) document.write(`
+                        <td class="zone-cell">
+                            <div class="result-box">
+                                <div id="bar-${i}" class="key-bar" style="height: 0%"></div>
+                                <span id="txt-${i}" class="absolute top-2 text-[10px] font-bold">--</span>
+                            </div>
+                        </td>`);</script>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function calculateAll() {
+            const zones = [];
+            const color = document.getElementById('global_color').value;
+            document.querySelectorAll('.de-in').forEach(input => {
+                const z = input.dataset.zone;
+                const de = input.value;
+                const initK = document.querySelector(`.key-in[data-zone="${z}"]`).value;
+                if(de) { zones.push({ zone_no: z, de_before: de, init_key: initK, color: color, job_number: "GLOBAL", paper_type: "Coated" }); }
+            });
+            if(zones.length === 0) return alert("Enter some ΔE values first.");
+
+            const res = await fetch('/predict_all', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ zones: zones }) });
+            const result = await res.json();
+            if(result.status === "success") {
+                result.results.forEach(r => {
+                    document.getElementById(`txt-${r.zone_no}`).innerText = r.predicted_key + "%";
+                    document.getElementById(`bar-${r.zone_no}`).style.height = r.predicted_key + "%";
+                });
+            }
+        }
+
+        function clearConsole() {
+            if(confirm("Clear all data and results?")) {
+                document.querySelectorAll('input').forEach(i => { if(!i.classList.contains('key-in')) i.value = ""; });
+                document.querySelectorAll('.key-bar').forEach(b => b.style.height = "0%");
+                document.querySelectorAll('.result-box span').forEach(s => s.innerText = "--");
+            }
+        }
+
+        function updateColors() {
+            const color = document.getElementById('global_color').value;
+            const colors = {'Cyan':'#06b6d4', 'Magenta':'#d946ef', 'Yellow':'#facc15', 'Black':'#64748b'};
+            document.querySelectorAll('.key-bar').forEach(b => b.style.background = colors[color]);
+        }
     </script>
 </body>
 </html>
