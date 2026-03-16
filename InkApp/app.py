@@ -1,72 +1,89 @@
 from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import joblib
+import json
 import os
 
 app = Flask(__name__)
 
-# This logic automatically finds the model in the same folder as this script
+# Paths - Ensure these point to your current desktop setup
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_NAME = r'C:\Users\ARJUN\OneDrive\Desktop\printing-internship\ink_model_pipeline.pkl'
+MODEL_NAME = r'C:\Users\ARJUN\OneDrive\Desktop\printing-internship\ink_key_stacking_model.pkl' 
 MODEL_PATH = os.path.join(BASE_DIR, MODEL_NAME)
+CONFIG_PATH = os.path.join(BASE_DIR, 'press_settings.json')
+EXCEL_PATH = os.path.join(BASE_DIR, 'print_logs.xlsx')
 
-# Load the model once when the server starts
+# MAPPINGS: Exact match to your pakka_data.map() logic
+PAPER_MAP = {'Coated': 0, 'Uncoated': 1}
+COLOR_MAP = {'Cyan': 0, 'Magenta': 1, 'Yellow': 2, 'Black': 3}
+
+def get_config():
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'r') as f: return json.load(f)
+    return {"density_relation": 0.5, "zero_setting": 0, "target_de": 2.5}
+
 try:
-    # Ensure you have exported 'ink_model_pipeline.pkl' from your notebook
     model = joblib.load(MODEL_PATH)
-    print("✅ Success: ML Model Loaded.")
+    print("✅ Stacking Model Loaded Successfully.")
 except Exception as e:
-    print(f"❌ Error: Could not find or load {MODEL_NAME} in {BASE_DIR}")
-    print(f"Details: {e}")
+    print(f"❌ Load Error: {e}")
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('index.html', config=get_config())
 
-@app.route('/predict', methods=['POST'])
-def predict():
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if request.method == 'POST':
+        config = {
+            "density_relation": float(request.form['density_relation']),
+            "zero_setting": int(request.form['zero_setting']),
+            "target_de": float(request.form['target_de'])
+        }
+        with open(CONFIG_PATH, 'w') as f: json.dump(config, f)
+        return render_template('settings.html', config=config, msg="Settings Saved!")
+    return render_template('settings.html', config=get_config())
+
+@app.route('/predict_all', methods=['POST'])
+def predict_all():
     try:
-        data = request.json
-        
-        # 1. Capture the initial values
-        de_before = float(data['Delta_E_before'])
-        # Since we don't have the 'after' value yet (that's what we are predicting),
-        # your model likely used a placeholder or the 'reduction' was a training feature.
-        # Based on your notebook cell 6, it was calculated as:
-        # DeltaE_reduction = Delta_E_before - Delta_E_after
-        
-        # NOTE: If this was a feature during training, you must provide it.
-        # Usually, for a prediction app, we calculate the reduction based on the
-        # user's intended target or use a default of 0 if it's an 'after' prediction.
-        # Based on your specific model requirements:
-        de_reduction = de_before - float(data.get('Delta_E_after', 0)) 
+        zones_input = request.json['zones']
+        config = get_config()
+        results = []
+        log_entries = []
 
-        # 2. Create the DataFrame with the missing column included
-        input_df = pd.DataFrame([{
-            'Press_ID': int(data['Press_ID']),
-            'Job_Number': str(data['Job_Number']),
-            'Paper_type': str(data['Paper_type']),
-            'Zone_number': float(data['Zone_number']),
-            'Color': str(data['Color']),
-            'Ink_key_zero_setting': float(data['Ink_key_zero_setting']),
-            'Delta_E_before': de_before,
-            'initial_density': float(data['initial_density']),
-            'final_density': float(data['final_density']),
-            'initial_ink_key_setting': float(data['initial_ink_key_setting']),
-            'final_ink_key_setting': float(data['final_ink_key_setting']),
-            'DeltaE_reduction': de_reduction  # <--- THIS WAS MISSING
-        }])
+        for zone in zones_input:
+            # Match categorical numbers
+            paper_val = PAPER_MAP.get(zone['paper_type'], 0)
+            color_val = COLOR_MAP.get(zone['color'], 0)
+            
+            # Align exact 11 columns from your notebook's training set
+            de_before = float(zone['de_before'])
+            target_de = float(config['target_de'])
+            
+            features = pd.DataFrame([{
+                'Press ID': 1,
+                'Job Number': int(zone['job_number']),
+                'Paper type': paper_val,
+                'Zone number': int(zone['zone_no']),
+                'Color': color_val,
+                'Ink key zero setting': int(config['zero_setting']),
+                'Delta E before': de_before,
+                'Delta E after': target_de,
+                'initial density': 1.2, # Static default for example
+                'final density': 1.2 + float(config['density_relation']),
+                'initial ink key setting': float(zone['init_key'])
+            }])
 
-        # 3. Run the Prediction
-        prediction = model.predict(input_df)
-        
-        return jsonify({
-            "status": "success",
-            "prediction": round(float(prediction[0]), 3)
-        })
+            # Run prediction through the StackingRegressor
+            prediction = model.predict(features)
+            final_key = round(float(prediction[0]), 2)
+            results.append({"zone_no": zone['zone_no'], "predicted_key": final_key})
+
+        return jsonify({"status": "success", "results": results})
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)})
+
 if __name__ == '__main__':
-    # port 5000 is the default for Flask
     app.run(debug=True, port=5000)
