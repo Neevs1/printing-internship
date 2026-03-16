@@ -111,3 +111,472 @@ def predict():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
+
+
+    from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import joblib
+import os
+
+app = Flask(__name__)
+
+# This logic automatically finds the model in the same folder as this script
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_NAME = r'C:\Users\ARJUN\OneDrive\Desktop\printing-internship\ink_model_pipeline.pkl'
+MODEL_PATH = os.path.join(BASE_DIR, MODEL_NAME)
+
+# Load the model once when the server starts
+try:
+    # Ensure you have exported 'ink_model_pipeline.pkl' from your notebook
+    model = joblib.load(MODEL_PATH)
+    print("✅ Success: ML Model Loaded.")
+except Exception as e:
+    print(f"❌ Error: Could not find or load {MODEL_NAME} in {BASE_DIR}")
+    print(f"Details: {e}")
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        
+        # 1. Capture the initial values
+        de_before = float(data['Delta_E_before'])
+        # Since we don't have the 'after' value yet (that's what we are predicting),
+        # your model likely used a placeholder or the 'reduction' was a training feature.
+        # Based on your notebook cell 6, it was calculated as:
+        # DeltaE_reduction = Delta_E_before - Delta_E_after
+        
+        # NOTE: If this was a feature during training, you must provide it.
+        # Usually, for a prediction app, we calculate the reduction based on the
+        # user's intended target or use a default of 0 if it's an 'after' prediction.
+        # Based on your specific model requirements:
+        de_reduction = de_before - float(data.get('Delta_E_after', 0)) 
+
+        # 2. Create the DataFrame with the missing column included
+        input_df = pd.DataFrame([{
+            'Press_ID': int(data['Press_ID']),
+            'Job_Number': str(data['Job_Number']),
+            'Paper_type': str(data['Paper_type']),
+            'Zone_number': float(data['Zone_number']),
+            'Color': str(data['Color']),
+            'Ink_key_zero_setting': float(data['Ink_key_zero_setting']),
+            'Delta_E_before': de_before,
+            'initial_density': float(data['initial_density']),
+            'final_density': float(data['final_density']),
+            'initial_ink_key_setting': float(data['initial_ink_key_setting']),
+            'final_ink_key_setting': float(data['final_ink_key_setting']),
+            'DeltaE_reduction': de_reduction  # <--- THIS WAS MISSING
+        }])
+
+        # 3. Run the Prediction
+        prediction = model.predict(input_df)
+        
+        return jsonify({
+            "status": "success",
+            "prediction": round(float(prediction[0]), 3)
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+if __name__ == '__main__':
+    # port 5000 is the default for Flask
+    app.run(debug=True, port=5000)
+
+
+    from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import joblib
+import os
+import json
+
+app = Flask(__name__)
+
+# --- FILE PATHS ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, 'ink_model_pipeline.pkl')
+EXCEL_PATH = os.path.join(BASE_DIR, 'print_logs.xlsx')
+CONFIG_PATH = os.path.join(BASE_DIR, 'press_settings.json')
+
+# --- LOAD MODEL ---
+def load_model():
+    return joblib.load(MODEL_PATH)
+
+# --- HELPER: LOG TO EXCEL ---
+def log_to_excel(row_dict):
+    if not os.path.exists(EXCEL_PATH):
+        df = pd.DataFrame([row_dict])
+        df.to_excel(EXCEL_PATH, index=False)
+    else:
+        df = pd.read_excel(EXCEL_PATH)
+        df = pd.concat([df, pd.DataFrame([row_dict])], ignore_index=True)
+        df.to_excel(EXCEL_PATH, index=False)
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if request.method == 'POST':
+        config = {
+            "density_relation": float(request.form['density_relation']),
+            "zero_setting": float(request.form['zero_setting']),
+            "target_de": float(request.form['target_de'])
+        }
+        with open(CONFIG_PATH, 'w') as f:
+            json.dump(config, f)
+        return render_template('settings.html', config=config, msg="Settings Saved!")
+    
+    # Load existing config
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'r') as f:
+            config = json.load(f)
+    else:
+        config = {"density_relation": 0.5, "zero_setting": 0.0, "target_de": 2.5}
+    return render_template('settings.html', config=config)
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        model = load_model()
+        
+        # Load Press Config for the calculation
+        with open(CONFIG_PATH, 'r') as f:
+            config = json.load(f)
+
+        # 1. Prepare Input for Model
+        # Note: We are now predicting 'final_ink_key_setting' 
+        # Make sure your xgb_pipe was retrained with final_ink_key_setting as Y
+        input_df = pd.DataFrame([{
+            'Press_ID': 1,
+            'Job_Number': str(data['job_number']),
+            'Paper_type': str(data['paper_type']),
+            'Zone_number': float(data['zone_number']),
+            'Color': str(data['color']),
+            'Ink_key_zero_setting': config['zero_setting'],
+            'Delta_E_before': float(data['delta_e_before']),
+            'initial_density': float(data.get('initial_density', 0)),
+            'final_density': 0, # To be determined by predicted key
+            'initial_ink_key_setting': float(data['initial_key']),
+            'DeltaE_reduction': float(data['delta_e_before']) - config['target_de']
+        }])
+
+        prediction = model.predict(input_df)
+        final_key = round(float(prediction[0]), 2)
+
+        # 2. Log to Excel (Local Storage)
+        log_data = {**data, "predicted_final_key": final_key, "target_de": config['target_de']}
+        log_to_excel(log_data)
+
+        return jsonify({
+            "status": "success",
+            "predicted_key": final_key,
+            "final_de": config['target_de'] # Since we predict the key to reach this target
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+
+    """from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import joblib
+import json
+import os
+
+app = Flask(__name__)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, r'C:\Users\ARJUN\OneDrive\Desktop\printing-internship\ink_model_pipeline.pkl')
+EXCEL_PATH = os.path.join(BASE_DIR, 'print_logs.xlsx')
+CONFIG_PATH = os.path.join(BASE_DIR, 'press_settings.json')
+
+def get_config():
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'r') as f: return json.load(f)
+    return {"density_relation": 0.5, "zero_setting": 0.0, "target_de": 2.5}
+
+@app.route('/')
+def index():
+    return render_template('index.html', config=get_config())
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if request.method == 'POST':
+        config = {
+            "density_relation": float(request.form['density_relation']),
+            "zero_setting": float(request.form['zero_setting']),
+            "target_de": float(request.form['target_de'])
+        }
+        with open(CONFIG_PATH, 'w') as f: json.dump(config, f)
+        return render_template('settings.html', config=config, msg="Settings Saved Locally!")
+    return render_template('settings.html', config=get_config())
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        config = get_config()
+        model = joblib.load(MODEL_PATH)
+
+        # Create input for the model
+        input_df = pd.DataFrame([{
+            'Press_ID': 1,
+            'Job_Number': str(data['job_number']),
+            'Paper_type': str(data['paper_type']),
+            'Zone_number': float(data['zone_number']),
+            'Color': str(data['color']),
+            'Ink_key_zero_setting': config['zero_setting'],
+            'Delta_E_before': float(data['de_before']),
+            'initial_density': float(data.get('init_dens', 0)),
+            'final_density': float(data.get('init_dens', 0)) + config['density_relation'], # Simulated
+            'initial_ink_key_setting': float(data['init_key']),
+            'DeltaE_reduction': float(data['de_before']) - config['target_de']
+        }])
+
+        # Predict FINAL INK KEY
+        prediction = model.predict(input_df)
+        final_key = round(float(prediction[0]), 2)
+
+        # LOCAL EXCEL LOGGING
+        log_df = pd.concat([input_df, pd.DataFrame([{"predicted_key": final_key}])], axis=1)
+        if not os.path.exists(EXCEL_PATH):
+            log_df.to_excel(EXCEL_PATH, index=False)
+        else:
+            with pd.ExcelWriter(EXCEL_PATH, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
+                existing_df = pd.read_excel(EXCEL_PATH)
+                pd.concat([existing_df, log_df]).to_excel(writer, index=False)
+
+        return jsonify({"status": "success", "final_key": final_key, "final_de": config['target_de']})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+if __name__ == '__main__':
+    app.run(debug=True)"""
+
+    from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import joblib
+import json
+import os
+
+app = Flask(__name__)
+
+# Paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, r'C:\Users\ARJUN\OneDrive\Desktop\printing-internship\ink_model_pipeline.pkl')
+EXCEL_PATH = os.path.join(BASE_DIR, 'print_logs.xlsx')
+CONFIG_PATH = os.path.join(BASE_DIR, 'press_settings.json')
+
+# Model and Config Helpers
+def get_config():
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'r') as f: return json.load(f)
+    return {"density_relation": 0.5, "zero_setting": 0.0, "target_de": 2.5}
+
+def load_model():
+    return joblib.load(MODEL_PATH)
+
+@app.route('/')
+def index():
+    return render_template('index.html', config=get_config())
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if request.method == 'POST':
+        config = {
+            "density_relation": float(request.form['density_relation']),
+            "zero_setting": float(request.form['zero_setting']),
+            "target_de": float(request.form['target_de'])
+        }
+        with open(CONFIG_PATH, 'w') as f: json.dump(config, f)
+        return render_template('settings.html', config=config, msg="Press Settings Updated!")
+    return render_template('settings.html', config=get_config())
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        config = get_config()
+        model = load_model()
+
+        # Build feature set for XGBoost
+        input_df = pd.DataFrame([{
+            'Press_ID': 1,
+            'Job_Number': str(data['job_number']),
+            'Paper_type': str(data['paper_type']),
+            'Zone_number': float(data['zone_number']),
+            'Color': str(data['color']),
+            'Ink_key_zero_setting': float(config['zero_setting']),
+            'Delta_E_before': float(data['de_before']),
+            'initial_density': float(data.get('init_dens', 0)),
+            'final_density': float(data.get('init_dens', 0)) + float(config['density_relation']),
+            'initial_ink_key_setting': float(data['init_key']),
+            'DeltaE_reduction': float(data['de_before']) - float(config['target_de'])
+        }])
+
+        prediction = model.predict(input_df)
+        final_key = round(float(prediction[0]), 2)
+
+        # Log to Excel (Log the prediction first, we'll update the 'Actual' later)
+        log_df = input_df.copy()
+        log_df['final_ink_key_setting'] = final_key # Placeholder for actual
+        if not os.path.exists(EXCEL_PATH):
+            log_df.to_excel(EXCEL_PATH, index=False)
+        else:
+            existing = pd.read_excel(EXCEL_PATH)
+            pd.concat([existing, log_df]).to_excel(EXCEL_PATH, index=False)
+
+        return jsonify({"status": "success", "final_key": final_key, "final_de": config['target_de']})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/save_actual', methods=['POST'])
+def save_actual():
+    try:
+        actual_val = float(request.json['actual_key'])
+        df = pd.read_excel(EXCEL_PATH)
+        # Update the target column of the last entry with the user-verified 'Actual'
+        df.iloc[-1, df.columns.get_loc('final_ink_key_setting')] = actual_val
+        df.to_excel(EXCEL_PATH, index=False)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/retrain', methods=['POST'])
+def retrain():
+    try:
+        data = pd.read_excel(EXCEL_PATH).dropna(subset=['final_ink_key_setting'])
+        X = data.drop(['final_ink_key_setting', 'Delta_E_after'], axis=1, errors='ignore')
+        y = data['final_ink_key_setting']
+        
+        model_pipe = load_model()
+        model_pipe.fit(X, y)
+        joblib.dump(model_pipe, MODEL_PATH)
+        return jsonify({"status": "success", "message": f"Learned from {len(data)} jobs!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+
+from flask import Flask, render_template, request, jsonify
+import pandas as pd
+import joblib
+import json
+import os
+
+app = Flask(__name__)
+
+# File Paths
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, r'C:\Users\ARJUN\OneDrive\Desktop\printing-internship\ink_model_pipeline.pkl')
+EXCEL_PATH = os.path.join(BASE_DIR, 'print_logs.xlsx')
+CONFIG_PATH = os.path.join(BASE_DIR, 'press_settings.json')
+
+# Helper: Load Press Config
+def get_config():
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'r') as f:
+            return json.load(f)
+    return {"density_relation": 0.5, "zero_setting": 0.0, "target_de": 2.5}
+
+@app.route('/')
+def index():
+    return render_template('index.html', config=get_config())
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    if request.method == 'POST':
+        config = {
+            "density_relation": float(request.form['density_relation']),
+            "zero_setting": float(request.form['zero_setting']),
+            "target_de": float(request.form['target_de'])
+        }
+        with open(CONFIG_PATH, 'w') as f:
+            json.dump(config, f)
+        return render_template('settings.html', config=config, msg="Settings Saved Locally!")
+    return render_template('settings.html', config=get_config())
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    try:
+        data = request.json
+        config = get_config()
+        model = joblib.load(MODEL_PATH)
+
+        # 1. Feature Engineering (Match notebook requirements)
+        de_before = float(data['de_before'])
+        target_de = float(config['target_de'])
+        
+        input_df = pd.DataFrame([{
+            'Press_ID': 1,
+            'Job_Number': str(data['job_number']),
+            'Paper_type': str(data['paper_type']),
+            'Zone_number': float(data['zone_number']),
+            'Color': str(data['color']),
+            'Ink_key_zero_setting': float(config['zero_setting']),
+            'Delta_E_before': de_before,
+            'initial_density': float(data.get('init_dens', 0) or 0),
+            'final_density': float(data.get('init_dens', 0) or 0) + float(config['density_relation']),
+            'initial_ink_key_setting': float(data['init_key']),
+            'DeltaE_reduction': de_before - target_de
+        }])
+
+        # 2. ML Prediction
+        prediction = model.predict(input_df)
+        final_key = round(float(prediction[0]), 2)
+
+        # 3. Initial Log to Excel
+        log_df = input_df.copy()
+        log_df['final_ink_key_setting'] = final_key # Default to prediction until verified
+        
+        if not os.path.exists(EXCEL_PATH):
+            log_df.to_excel(EXCEL_PATH, index=False)
+        else:
+            existing = pd.read_excel(EXCEL_PATH)
+            pd.concat([existing, log_df], ignore_index=True).to_excel(EXCEL_PATH, index=False)
+
+        return jsonify({"status": "success", "final_key": final_key, "final_de": target_de})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/save_actual', methods=['POST'])
+def save_actual():
+    try:
+        actual_val = float(request.json['actual_key'])
+        df = pd.read_excel(EXCEL_PATH)
+        # Update the target column of the very last entry with the user-verified value
+        df.iloc[-1, df.columns.get_loc('final_ink_key_setting')] = actual_val
+        df.to_excel(EXCEL_PATH, index=False)
+        return jsonify({"status": "success"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/retrain', methods=['POST'])
+def retrain():
+    try:
+        # Load logs and drop any rows missing a target
+        data = pd.read_excel(EXCEL_PATH).dropna(subset=['final_ink_key_setting'])
+        X = data.drop(['final_ink_key_setting', 'Delta_E_after'], axis=1, errors='ignore')
+        y = data['final_ink_key_setting']
+        
+        # Load current brain and re-fit with new data
+        model_pipe = joblib.load(MODEL_PATH)
+        model_pipe.fit(X, y)
+        joblib.dump(model_pipe, MODEL_PATH)
+        
+        return jsonify({"status": "success", "message": f"Model learned from {len(data)} jobs!"})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)})
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
