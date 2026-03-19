@@ -448,7 +448,7 @@
     </script>
 </body>
 </html>-->
-<!DOCTYPE html>
+<!--<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -568,6 +568,826 @@
                 bar.style.backgroundColor = colors[color];
             });
             document.getElementById('global_color').style.color = colors[color];
+        }
+    </script>
+</body>
+</html>-->
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InkKey AI | 32-Zone Horizontal Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; }
+        /* Custom scrollbar for the horizontal strip */
+        .zone-strip::-webkit-scrollbar { height: 8px; }
+        .zone-strip::-webkit-scrollbar-track { background: #0f172a; }
+        .zone-strip::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        
+        .zone-card { 
+            min-width: 100px; 
+            background: #0f172a; 
+            border: 1px solid #1e293b; 
+            transition: all 0.2s ease;
+        }
+        .zone-card:hover { border-color: #38bdf8; }
+        
+        input { 
+            background: #1e293b; 
+            border: 1px solid #334155; 
+            border-radius: 4px; 
+            padding: 2px; 
+            width: 100%; 
+            text-align: center; 
+            color: #22d3ee; 
+            font-size: 13px;
+        }
+        label { font-size: 9px; color: #94a3b8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.05em; margin-top: 6px; display: block; }
+    </style>
+</head>
+<body class="p-6">
+
+    <header class="flex flex-wrap justify-between items-end gap-6 mb-8 bg-slate-900/50 p-6 rounded-2xl border border-slate-800 shadow-2xl">
+        <div class="flex flex-col">
+            <h1 class="text-2xl font-black tracking-tighter text-white">INKKEY <span class="text-cyan-500">OPTIMIZER</span></h1>
+            <p class="text-[10px] text-slate-500 font-mono">v3.0 | PHYSICS-INFORMED AI</p>
+        </div>
+
+        <div class="flex items-end gap-4">
+            <div class="flex flex-col gap-1">
+                <label>Paper / Color</label>
+                <div class="flex gap-2">
+                    <select id="global_paper" class="bg-slate-800 border border-slate-700 text-xs p-2 rounded">
+                        <option>Coated</option><option>Uncoated</option>
+                    </select>
+                    <select id="global_color" class="bg-slate-800 border border-slate-700 text-xs p-2 rounded text-cyan-400 font-bold">
+                        <option>Cyan</option><option>Magenta</option><option>Yellow</option><option>Black</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="w-24">
+                <label>Sensitivity (%)</label>
+                <input type="number" id="sensitivity" value="100" class="h-9 text-lg font-bold">
+            </div>
+
+            <div class="w-20">
+                <label>Target ΔE</label>
+                <input type="number" id="target_de" value="2.5" step="0.1" class="h-9 text-lg font-bold">
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="predictAll()" class="bg-cyan-600 hover:bg-cyan-500 px-8 py-2 rounded-lg font-black text-sm transition-all shadow-lg shadow-cyan-900/40">PREDICT</button>
+                <button onclick="saveActuals()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded-lg font-black text-sm transition-all shadow-lg shadow-emerald-900/40 uppercase">Save & Retrain</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="zone-strip flex gap-1 pb-4 overflow-x-auto">
+        <script>
+            for(let i=1; i<=32; i++) {
+                document.write(`
+                    <div class="zone-card p-3 rounded-xl flex flex-col gap-1">
+                        <div class="text-[11px] font-black text-center text-slate-600 mb-2">ZONE ${i}</div>
+                        
+                        <label>Scan ΔE</label>
+                        <input type="number" step="0.01" class="de-in" data-z="${i}" placeholder="0.00">
+                        
+                        <label>Init Key %</label>
+                        <input type="number" step="0.01" class="key-in" data-z="${i}" value="43.63">
+                        
+                        <label>Init Dens</label>
+                        <input type="number" step="0.01" class="dens-in" data-z="${i}" value="1.13">
+                        
+                        <div class="mt-4 p-2 bg-cyan-950/30 border border-cyan-900/50 rounded-lg text-center">
+                            <label class="!text-cyan-500 !mt-0">AI Suggest</label>
+                            <div id="pred-${i}" class="text-lg font-black text-cyan-400 italic">--</div>
+                        </div>
+
+                        <div class="mt-2 p-2 bg-emerald-950/20 border border-emerald-900/30 rounded-lg text-center">
+                            <label class="!text-emerald-500 !mt-0">Actual Key %</label>
+                            <input type="number" step="0.01" class="actual-in !bg-emerald-950/50 !border-emerald-800" data-z="${i}" placeholder="HIT">
+                        </div>
+                    </div>
+                `);
+            }
+        </script>
+    </div>
+
+    <footer class="mt-8 grid grid-cols-2 gap-6">
+        <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 h-32 overflow-y-auto">
+            <h3 class="text-[10px] font-bold text-slate-500 uppercase mb-2">System Status</h3>
+            <div id="status-log" class="text-xs font-mono text-slate-400">Ready for scan input...</div>
+        </div>
+        <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 flex flex-col justify-center items-center text-center">
+            <p class="text-xs text-slate-500">Sensitivity accounts for mechanical roll efficiency. 100% is standard physics.</p>
+            <p class="text-[10px] text-cyan-700 mt-2 font-mono">ADAPTIVE LEARNING ENABLED</p>
+        </div>
+    </footer>
+
+    <script>
+        function log(msg) {
+            const logBox = document.getElementById('status-log');
+            logBox.innerHTML += `<div>> ${msg}</div>`;
+            logBox.scrollTop = logBox.scrollHeight;
+        }
+
+        async function predictAll() {
+            const zones = [];
+            const target = document.getElementById('target_de').value;
+            const sensitivity = document.getElementById('sensitivity').value;
+            const paper = document.getElementById('global_paper').value;
+            const color = document.getElementById('global_color').value;
+
+            document.querySelectorAll('.de-in').forEach(el => {
+                const z = el.dataset.z;
+                if(el.value) {
+                    zones.push({
+                        zone_no: z,
+                        de_before: el.value,
+                        init_dens: document.querySelector(`.dens-in[data-z="${z}"]`).value,
+                        init_key: document.querySelector(`.key-in[data-z="${z}"]`).value,
+                        paper_type: paper,
+                        color: color,
+                        zero_setting: 0
+                    });
+                }
+            });
+
+            if(zones.length === 0) return log("Error: No Scan ΔE values entered.");
+
+            log(`Sending ${zones.length} zones to AI at ${sensitivity}% sensitivity...`);
+
+            try {
+                const res = await fetch('/predict_all', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ zones, target_de: target, sensitivity: sensitivity })
+                });
+                const data = await res.json();
+                
+                if(data.status === "success") {
+                    data.results.forEach(r => {
+                        document.getElementById(`pred-${r.zone_no}`).innerText = r.predicted_key + "%";
+                    });
+                    log("Predictions updated successfully.");
+                }
+            } catch (e) { log("Connection Error: Backend unreachable."); }
+        }
+
+        async function saveActuals() {
+            const logs = [];
+            document.querySelectorAll('.actual-in').forEach(el => {
+                if(el.value) {
+                    const z = el.dataset.z;
+                    logs.push({
+                        zone_no: z,
+                        actual_key: el.value,
+                        de_scan: document.querySelector(`.de-in[data-z="${z}"]`).value
+                    });
+                }
+            });
+
+            if(logs.length === 0) return log("Error: No 'Actual' values to save.");
+
+            log(`Saving ${logs.length} data points to training logs...`);
+            
+            try {
+                const res = await fetch('/save_actual', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ logs })
+                });
+                const data = await res.json();
+                if(data.status === "success") log("SUCCESS: Model queue updated for retraining.");
+            } catch (e) { log("Error: Failed to save logs."); }
+        }
+    </script>
+</body>
+</html>-->
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>InkKey AI | 32-Zone Grid Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden; }
+        /* Ultra-compact grid to fit everything on one screen */
+        .main-grid { 
+            display: grid; 
+            grid-template-columns: repeat(8, 1fr); 
+            gap: 6px; 
+            height: calc(100vh - 160px);
+        }
+        .zone-card { 
+            background: #0f172a; 
+            border: 1px solid #1e293b; 
+            border-radius: 6px; 
+            padding: 6px; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+        }
+        input { 
+            background: #1e293b; 
+            border: 1px solid #334155; 
+            border-radius: 3px; 
+            padding: 1px 2px; 
+            width: 100%; 
+            text-align: center; 
+            color: #22d3ee; 
+            font-size: 11px;
+            height: 20px;
+        }
+        label { font-size: 8px; color: #64748b; text-transform: uppercase; font-weight: 700; margin-top: 2px; }
+        .predict-val { color: #22d3ee; font-weight: 900; font-size: 14px; text-align: center; line-height: 1; }
+        .change-tag { font-size: 9px; text-align: center; color: #94a3b8; }
+    </style>
+</head>
+<body class="p-4">
+
+    <header class="flex justify-between items-center mb-4 bg-slate-900/80 p-4 rounded-xl border border-slate-800">
+        <div class="flex flex-col">
+            <h1 class="text-lg font-black tracking-tighter text-white leading-none">INKKEY <span class="text-cyan-500">PRO</span></h1>
+            <span class="text-[8px] text-slate-500 font-mono">32-ZONE GRID VIEW | ADAPTIVE LEARNING</span>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div class="flex gap-2 bg-slate-950 p-2 rounded-lg border border-slate-800">
+                <div class="w-16"><label>Sensitivity %</label><input type="number" id="sensitivity" value="100"></div>
+                <div class="w-16"><label>Target ΔE</label><input type="number" id="target_de" value="2.5" step="0.1"></div>
+            </div>
+            
+            <div class="flex gap-2">
+                <select id="global_paper" class="bg-slate-800 text-[10px] p-1 rounded border border-slate-700">
+                    <option>Coated</option><option>Uncoated</option>
+                </select>
+                <select id="global_color" class="bg-slate-800 text-[10px] p-1 rounded border border-slate-700 text-cyan-400">
+                    <option>Cyan</option><option>Magenta</option><option>Yellow</option><option>Black</option>
+                </select>
+            </div>
+
+            <button onclick="predictAll()" class="bg-cyan-600 hover:bg-cyan-500 px-6 py-2 rounded font-black text-xs transition-all shadow-lg shadow-cyan-900/20">PREDICT</button>
+            <button onclick="saveActuals()" class="bg-emerald-600 hover:bg-emerald-500 px-4 py-2 rounded font-black text-xs">SAVE ACTUALS</button>
+        </div>
+    </header>
+
+    <div class="main-grid">
+        <script>
+            for(let i=1; i<=32; i++) {
+                document.write(`
+                    <div class="zone-card">
+                        <div class="flex justify-between items-center border-b border-slate-800 pb-1">
+                            <span class="text-[9px] font-bold text-slate-500">Z${i}</span>
+                            <div id="pred-${i}" class="predict-val">--</div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-x-2 mt-1">
+                            <div><label>ΔE Scan</label><input type="number" step="0.1" class="de-in" data-z="${i}"></div>
+                            <div><label>Init %</label><input type="number" step="0.1" class="key-in" data-z="${i}" value="43.6"></div>
+                        </div>
+
+                        <div id="change-${i}" class="change-tag">Δ: 0.00%</div>
+
+                        <div class="mt-1 pt-1 border-t border-slate-800/50">
+                            <label class="!text-emerald-500">Actual (Retrain)</label>
+                            <input type="number" step="0.1" class="actual-in !bg-emerald-950/20 !border-emerald-900/50" data-z="${i}">
+                        </div>
+                    </div>
+                `);
+            }
+        </script>
+    </div>
+
+    <footer class="mt-4 text-[10px] text-slate-500 flex justify-between items-center">
+        <div>System Status: <span id="status" class="text-cyan-800">Ready</span></div>
+        <div class="flex gap-4">
+            <span>● Prediction based on ΔE/Density Relation</span>
+            <span class="text-emerald-800">● Self-Learning Module Active</span>
+        </div>
+    </footer>
+
+    <script>
+        function setStatus(msg) { document.getElementById('status').innerText = msg; }
+
+        async function predictAll() {
+            const zones = [];
+            const target = document.getElementById('target_de').value;
+            const sensitivity = document.getElementById('sensitivity').value;
+
+            document.querySelectorAll('.de-in').forEach(el => {
+                const z = el.dataset.z;
+                if(el.value) {
+                    zones.push({
+                        zone_no: z,
+                        de_before: el.value,
+                        init_key: document.querySelector(`.key-in[data-z="${z}"]`).value,
+                        init_dens: 1.13, // Standard baseline
+                        paper_type: document.getElementById('global_paper').value,
+                        color: document.getElementById('global_color').value,
+                        zero_setting: 0
+                    });
+                }
+            });
+
+            if(zones.length === 0) return setStatus("No input detected.");
+
+            setStatus("Calculating...");
+            try {
+                const res = await fetch('/predict_all', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ zones, target_de: target, sensitivity: sensitivity })
+                });
+                const data = await res.json();
+                
+                if(data.status === "success") {
+                    data.results.forEach(r => {
+                        const initVal = parseFloat(document.querySelector(`.key-in[data-z="${r.zone_no}"]`).value);
+                        const change = (r.predicted_key - initVal).toFixed(2);
+                        
+                        document.getElementById(`pred-${r.zone_no}`).innerText = r.predicted_key + "%";
+                        document.getElementById(`change-${r.zone_no}`).innerText = `Δ: ${change > 0 ? '+' : ''}${change}%`;
+                    });
+                    setStatus("Predictions Updated.");
+                }
+            } catch (e) { setStatus("Server Error."); }
+        }
+
+        async function saveActuals() {
+            const logs = [];
+            document.querySelectorAll('.actual-in').forEach(el => {
+                if(el.value) {
+                    logs.push({
+                        zone_no: el.dataset.z,
+                        actual_key: el.value,
+                        scan_de: document.querySelector(`.de-in[data-z="${el.dataset.z}"]`).value
+                    });
+                }
+            });
+            if(logs.length === 0) return setStatus("No actuals entered.");
+            
+            const res = await fetch('/save_actual', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ logs })
+            });
+            setStatus("Data Logged for Retraining.");
+        }
+    </script>
+</body>
+</html>-->
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>InkKey AI | 32-Zone Micro-Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #020617; color: #cbd5e1; font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden; padding: 10px; }
+        .main-grid { 
+            display: grid; 
+            grid-template-columns: repeat(8, 1fr); 
+            grid-template-rows: repeat(4, 1fr);
+            gap: 4px; 
+            height: calc(100vh - 100px);
+        }
+        .zone-card { 
+            background: #0f172a; 
+            border: 1px solid #1e293b; 
+            border-radius: 4px; 
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .label-text { font-size: 7px; color: #64748b; text-transform: uppercase; font-weight: bold; line-height: 1; }
+        .val-text { font-size: 11px; font-weight: 800; color: #22d3ee; }
+        
+        input { 
+            background: #1e293b; 
+            border: 1px solid #334155; 
+            color: #22d3ee; 
+            font-size: 10px; 
+            text-align: center; 
+            width: 100%;
+            height: 18px;
+            border-radius: 2px;
+        }
+        /* Custom green style for retraining input */
+        .actual-in { border-color: #064e3b; background: #022c22; color: #34d399; }
+        .actual-in:focus { border-color: #10b981; outline: none; }
+    </style>
+</head>
+<body>
+
+    <header class="flex justify-between items-center mb-3 bg-slate-900 p-2 rounded-lg border border-slate-800">
+        <div class="flex items-center gap-4">
+            <h1 class="text-sm font-black text-white tracking-tighter">INKKEY <span class="text-cyan-500">PRO</span></h1>
+            <div class="flex gap-2 border-l border-slate-700 pl-4">
+                <div class="flex flex-col"><span class="label-text">Sens %</span><input type="number" id="sensitivity" value="100" class="!w-12"></div>
+                <div class="flex flex-col"><span class="label-text">Target ΔE</span><input type="number" id="target_de" value="2.5" step="0.1" class="!w-12"></div>
+            </div>
+        </div>
+
+        <div class="flex gap-2">
+            <select id="global_paper" class="bg-slate-800 text-[10px] px-2 rounded border border-slate-700"><option>Coated</option><option>Uncoated</option></select>
+            <select id="global_color" class="bg-slate-800 text-[10px] px-2 rounded border border-slate-700 text-cyan-400"><option>Cyan</option><option>Magenta</option><option>Yellow</option><option>Black</option></select>
+            <button onclick="predictAll()" class="bg-cyan-600 hover:bg-cyan-500 px-4 py-1 rounded text-[10px] font-bold text-white transition-all uppercase">Predict</button>
+            <button onclick="saveActuals()" class="bg-emerald-700 hover:bg-emerald-600 px-4 py-1 rounded text-[10px] font-bold text-white uppercase">Retrain</button>
+        </div>
+    </header>
+
+    <div class="main-grid">
+        <script>
+            for(let i=1; i<=32; i++) {
+                document.write(`
+                    <div class="zone-card">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[9px] font-black text-slate-500">Z${i}</span>
+                            <span id="pred-${i}" class="val-text">--</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-1">
+                            <div class="flex flex-col">
+                                <span class="label-text">ΔE Scan</span>
+                                <input type="number" step="0.1" class="de-in" data-z="${i}">
+                            </div>
+                            <div class="flex flex-col">
+                                <span class="label-text">Init %</span>
+                                <input type="number" step="0.1" class="key-in" data-z="${i}" value="43.6">
+                            </div>
+                        </div>
+
+                        <div class="flex justify-between items-center mt-1">
+                            <span id="change-${i}" class="text-[8px] font-mono text-slate-500">Δ 0.0</span>
+                            <div class="w-14 flex flex-col">
+                                <span class="label-text !text-emerald-600">Actual</span>
+                                <input type="number" step="0.1" class="actual-in" data-z="${i}">
+                            </div>
+                        </div>
+                    </div>
+                `);
+            }
+        </script>
+    </div>
+
+    <footer class="mt-2 text-[8px] flex justify-between text-slate-600 italic">
+        <span>Status: <span id="status" class="text-cyan-900 font-bold">Awaiting Data</span></span>
+        <span>Physics: ΔE/Density Bridge | Stacking Regressor Active</span>
+    </footer>
+
+    <script>
+        function setStatus(msg) { document.getElementById('status').innerText = msg; }
+
+        async function predictAll() {
+            const zones = [];
+            const target = document.getElementById('target_de').value;
+            const sensitivity = document.getElementById('sensitivity').value;
+
+            document.querySelectorAll('.de-in').forEach(el => {
+                const z = el.dataset.z;
+                if(el.value) {
+                    zones.push({
+                        zone_no: z, de_before: el.value,
+                        init_key: document.querySelector(`.key-in[data-z="${z}"]`).value,
+                        init_dens: 1.13,
+                        paper_type: document.getElementById('global_paper').value,
+                        color: document.getElementById('global_color').value,
+                        zero_setting: 0
+                    });
+                }
+            });
+
+            if(zones.length === 0) return setStatus("No Input");
+
+            setStatus("Processing...");
+            try {
+                const res = await fetch('/predict_all', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ zones, target_de: target, sensitivity: sensitivity })
+                });
+                const data = await res.json();
+                
+                if(data.status === "success") {
+                    data.results.forEach(r => {
+                        const initVal = parseFloat(document.querySelector(`.key-in[data-z="${r.zone_no}"]`).value);
+                        const change = (r.predicted_key - initVal).toFixed(1);
+                        
+                        document.getElementById(`pred-${r.zone_no}`).innerText = r.predicted_key + "%";
+                        document.getElementById(`change-${r.zone_no}`).innerText = `Δ ${change > 0 ? '+' : ''}${change}`;
+                        document.getElementById(`change-${r.zone_no}`).classList.replace('text-slate-500', 'text-cyan-600');
+                    });
+                    setStatus("Online");
+                }
+            } catch (e) { setStatus("Offline"); }
+        }
+
+        async function saveActuals() {
+            const logs = [];
+            document.querySelectorAll('.actual-in').forEach(el => {
+                if(el.value) {
+                    logs.push({
+                        zone_no: el.dataset.z,
+                        actual_key: el.value,
+                        scan_de: document.querySelector(`.de-in[data-z="${el.dataset.z}"]`).value
+                    });
+                }
+            });
+            if(logs.length === 0) return;
+            
+            const res = await fetch('/save_actual', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ logs })
+            });
+            setStatus("Retrained");
+            setTimeout(() => setStatus("Online"), 2000);
+        }
+    </script>
+</body>
+</html>-->
+<!--<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>InkKey AI | Master Console</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #020617; color: #f1f5f9; font-family: 'Inter', sans-serif; height: 100vh; overflow: hidden; }
+        .console-container { display: flex; height: calc(100vh - 80px); padding: 10px; gap: 2px; }
+        
+        /* The sticky labels on the left */
+        .label-sidebar { min-width: 100px; display: flex; flex-direction: column; justify-content: space-around; padding-top: 30px; }
+        .side-label { font-size: 10px; font-weight: 800; color: #64748b; text-transform: uppercase; height: 50px; display: flex; align-items: center; }
+
+        /* The 32 narrow columns */
+        .zone-column { flex: 1; display: flex; flex-direction: column; justify-content: space-around; background: #0f172a; border: 1px solid #1e293b; border-radius: 4px; transition: 0.2s; }
+        .zone-column:hover { border-color: #0ea5e9; background: #1e293b; }
+        
+        input { 
+            background: #020617; border: 1px solid #334155; border-radius: 2px; 
+            width: 90%; margin: 0 auto; text-align: center; color: #22d3ee; 
+            font-size: 11px; height: 26px; 
+        }
+        .ai-out { font-size: 12px; font-weight: 900; color: #22d3ee; text-align: center; }
+        .actual-in { border-color: #064e3b; color: #34d399; }
+        .zone-id { font-size: 9px; text-align: center; color: #475569; font-weight: bold; }
+    </style>
+</head>
+<body class="p-4">
+
+    <header class="flex justify-between items-center mb-2 px-4 py-2 bg-slate-900 rounded-lg border border-slate-800">
+        <div class="flex items-center gap-6">
+            <h1 class="text-lg font-black tracking-tighter italic">INKKEY <span class="text-cyan-500">AI</span></h1>
+            <div class="flex gap-4 border-l border-slate-700 pl-6">
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Sens %</span>
+                    <input type="number" id="sensitivity" value="100" class="!w-16 !h-8 !text-sm">
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase">Target ΔE</span>
+                    <input type="number" id="target_de" value="2.5" step="0.1" class="!w-16 !h-8 !text-sm">
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-2">
+            <button onclick="predictAll()" class="bg-cyan-600 hover:bg-cyan-500 px-6 py-2 rounded font-black text-xs uppercase transition-all">Predict</button>
+            <button onclick="saveActuals()" class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded font-black text-xs uppercase transition-all">Save & Retrain</button>
+        </div>
+    </header>
+
+    <div class="console-container">
+        <div class="label-sidebar">
+            <div class="side-label">Scan ΔE</div>
+            <div class="side-label">Init Key %</div>
+            <div class="side-label">Init Dens</div>
+            <div class="side-label text-cyan-500">AI Suggest</div>
+            <div class="side-label text-emerald-500">Actual (Hit)</div>
+        </div>
+
+        <script>
+            for(let i=1; i<=32; i++) {
+                document.write(`
+                    <div class="zone-column">
+                        <div class="zone-id border-b border-slate-800 pb-1">Z${i}</div>
+                        <input type="number" step="0.1" class="de-in" data-z="${i}">
+                        <input type="number" step="0.1" class="key-in" data-z="${i}" value="43.6">
+                        <input type="number" step="0.1" class="dens-in" data-z="${i}" value="1.13">
+                        <div id="pred-${i}" class="ai-out">--</div>
+                        <input type="number" step="0.1" class="actual-in" data-z="${i}" placeholder="Hit">
+                    </div>
+                `);
+            }
+        </script>
+    </div>
+
+    <footer class="mt-2 text-[10px] text-slate-600 flex justify-between font-mono">
+        <span>STATUS: <span id="status" class="text-cyan-800">READY</span></span>
+        <span>ENGINE: STACKING REGRESSOR V3 | SENSITIVITY MAPPING ACTIVE</span>
+    </footer>
+
+    <script>
+        function setStatus(msg) { document.getElementById('status').innerText = msg; }
+
+        async function predictAll() {
+            const zones = [];
+            const target = document.getElementById('target_de').value;
+            const sensitivity = document.getElementById('sensitivity').value;
+
+            document.querySelectorAll('.de-in').forEach(el => {
+                const z = el.dataset.z;
+                if(el.value) {
+                    zones.push({
+                        zone_no: z,
+                        de_before: el.value,
+                        init_key: document.querySelector(`.key-in[data-z="${z}"]`).value,
+                        init_dens: document.querySelector(`.dens-in[data-z="${z}"]`).value,
+                        paper_type: 'Coated', color: 'Cyan', zero_setting: 0
+                    });
+                }
+            });
+
+            if(zones.length === 0) return setStatus("NO DATA");
+
+            setStatus("CALCULATING...");
+            try {
+                const res = await fetch('/predict_all', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ zones, target_de: target, sensitivity: sensitivity })
+                });
+                const data = await res.json();
+                if(data.status === "success") {
+                    data.results.forEach(r => {
+                        document.getElementById(`pred-${r.zone_no}`).innerText = r.predicted_key + "%";
+                    });
+                    setStatus("ONLINE");
+                }
+            } catch (e) { setStatus("OFFLINE"); }
+        }
+
+        async function saveActuals() {
+            const logs = [];
+            document.querySelectorAll('.actual-in').forEach(el => {
+                if(el.value) {
+                    logs.push({
+                        zone_no: el.dataset.z,
+                        actual_key: el.value,
+                        scan_de: document.querySelector(`.de-in[data-z="${el.dataset.z}"]`).value
+                    });
+                }
+            });
+            if(logs.length === 0) return;
+            const res = await fetch('/save_actual', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ logs })
+            });
+            setStatus("LEARNING UPDATED");
+        }
+    </script>
+</body>
+</html>-->
+<!--<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard | InkKey AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #020617; color: white; font-family: sans-serif; overflow-x: hidden; }
+        .zone-strip { display: flex; overflow-x: auto; gap: 2px; padding: 10px; background: #0f172a; }
+        .zone-col { min-width: 85px; flex: 1; display: flex; flex-direction: column; gap: 4px; border: 1px solid #1e293b; padding: 4px; border-radius: 4px; }
+        input { background: #020617; border: 1px solid #334155; font-size: 10px; text-align: center; color: #22d3ee; height: 22px; width: 100%; }
+        
+        /* Shortened Bars */
+        .bar-container { height: 40px; background: #020617; display: flex; align-items: flex-end; border-radius: 2px; overflow: hidden; position: relative; }
+        .bar-fill { width: 100%; background: #0ea5e9; transition: height 0.4s ease; }
+        .bar-label { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 9px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; }
+        
+        label { font-size: 8px; color: #64748b; font-weight: 900; text-transform: uppercase; }
+    </style>
+</head>
+<body class="p-4">
+    <header class="flex justify-between items-center mb-4">
+        <h1 class="text-xl font-black italic">INKKEY <span class="text-cyan-500">LIVE</span></h1>
+        <div class="flex gap-4">
+            <button onclick="predict()" class="bg-cyan-600 px-8 py-2 rounded font-bold uppercase text-xs">Predict</button>
+            <a href="/settings" class="bg-slate-800 px-4 py-2 rounded text-xs">Calibration & Settings ⚙️</a>
+        </div>
+    </header>
+
+    <div class="zone-strip">
+        <script>
+            for(let i=1; i<=32; i++) {
+                document.write(`
+                <div class="zone-col">
+                    <div class="text-[9px] text-center font-bold text-slate-500">Z${i}</div>
+                    
+                    <label>ΔE Scan</label>
+                    <input type="number" step="0.1" class="de-in" data-z="${i}">
+                    
+                    <label>Init %</label>
+                    <input type="number" step="0.1" class="key-in" data-z="${i}" value="43.6">
+
+                    <div class="bar-container mt-2">
+                        <div id="bar-${i}" class="bar-fill" style="height: 0%"></div>
+                        <span id="txt-${i}" class="bar-label">--</span>
+                    </div>
+                </div>
+                `);
+            }
+        </script>
+    </div>
+
+    <script>
+        async function predict() {
+            // Logic to send data to /predict_all
+            // Updates 'bar-X' height and 'txt-X' value
+        }
+    </script>
+</body>
+</html>-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard | InkKey AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #020617; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; }
+        /* 4 Rows, 8 Columns Grid */
+        .main-grid { 
+            display: grid; 
+            grid-template-columns: repeat(8, 1fr); 
+            grid-template-rows: repeat(4, 1fr);
+            gap: 6px; 
+            height: calc(100vh - 100px);
+            padding: 10px;
+        }
+        .zone-box { 
+            background: #0f172a; 
+            border: 1px solid #1e293b; 
+            border-radius: 4px; 
+            padding: 6px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        input { 
+            background: #1e293b; border: 1px solid #334155; border-radius: 2px;
+            color: #22d3ee; font-size: 10px; text-align: center; height: 20px; width: 100%;
+        }
+        .label-text { font-size: 7px; color: #64748b; text-transform: uppercase; font-weight: bold; }
+        
+        /* Compact 40px Bars */
+        .bar-wrap { height: 40px; background: #020617; border-radius: 2px; position: relative; display: flex; align-items: flex-end; overflow: hidden; }
+        .bar-fill { width: 100%; background: #0ea5e9; transition: height 0.4s ease; }
+        .bar-val { position: absolute; width: 100%; text-align: center; bottom: 2px; font-size: 9px; font-weight: 900; color: white; }
+    </style>
+</head>
+<body class="p-4">
+    <header class="flex justify-between items-center mb-2 px-4">
+        <h1 class="text-lg font-black italic tracking-tighter">INKKEY <span class="text-cyan-500">OPTIMIZER</span></h1>
+        <div class="flex gap-4">
+            <button onclick="calculate()" class="bg-cyan-600 hover:bg-cyan-500 px-8 py-2 rounded text-xs font-bold uppercase">Predict All</button>
+            <a href="/settings" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded text-xs font-bold">Settings ⚙️</a>
+        </div>
+    </header>
+
+    <div class="main-grid">
+        <script>
+            for(let i=1; i<=32; i++) {
+                document.write(`
+                <div class="zone-box">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[9px] font-bold text-slate-500">Z${i}</span>
+                        <input type="number" step="0.1" class="de-in !w-12" data-z="${i}" placeholder="ΔE">
+                    </div>
+                    
+                    <div class="flex gap-1 mt-1">
+                        <div class="flex-1"><span class="label-text">Init %</span><input type="number" step="0.1" class="key-in" data-z="${i}" value="43.6"></div>
+                        <div class="flex-1"><span class="label-text">Actual</span><input type="number" step="0.1" class="actual-in !border-emerald-900" data-z="${i}"></div>
+                    </div>
+
+                    <div class="bar-wrap mt-1">
+                        <div id="bar-${i}" class="bar-fill" style="height: 0%"></div>
+                        <span id="txt-${i}" class="bar-val">--</span>
+                    </div>
+                </div>
+                `);
+            }
+        </script>
+    </div>
+
+    <script>
+        async function calculate() {
+            // Logic to collect all 32 zones and update the bars/values
         }
     </script>
 </body>
