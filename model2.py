@@ -198,7 +198,7 @@ dump(model, 'color_to_density_model.pkl')
 
 # --- THE PHYSICS BRIDGE TEST ---
 # Input: Cyan, Coated, 0mm Zero, 7.54 Delta E (Gap of 5.04), Started at 43.6%
-sample_input = np.array([[0, 0, 0, 5.04, 43.6]])
+sample_input = np.array([[3, 0, 0.0, 4.15, 48.03]])
 predicted_target_density = model.predict(sample_input)[0]
 
 # APPLYING YOUR FORMULA: (Predicted Density * 11) / 0.3
